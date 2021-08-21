@@ -1,11 +1,13 @@
 package internal
 
 import (
+	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/mannemsolutions/pgtester/pkg/pg"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
+	"gopkg.in/yaml.v3"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,10 +17,6 @@ import (
 /*
  * This module reads the config file and returns a config object with all entries from the config yaml file.
  */
-
-const (
-	defaultConfFile = "./tests.yaml"
-)
 
 type Tests []Test
 
@@ -70,7 +68,8 @@ func (t *Test) MsgOnSuccess() (msg string) {
 type Configs []Config
 
 type Config struct {
-	Path    string
+	path    string
+	index   int
 	Debug   bool          `yaml:"debug"`
 	Delay   time.Duration `yaml:"delay"`
 	Retries uint          `yaml:"retries"`
@@ -78,19 +77,52 @@ type Config struct {
 	DSN     pg.Dsn        `yaml:"dsn"`
 }
 
-func NewConfig(path string) (c Config, err error) {
+func (c Config) Name() (name string){
+	return fmt.Sprintf("%s (%d)", c.path, c.index)
+}
+
+func NewConfigsFromReader(reader io.Reader, name string) (configs Configs, err error) {
+	var i int
+	decoder := yaml.NewDecoder(reader)
+	for {
+		// create new spec here
+		config := new(Config)
+		// pass a reference to spec reference
+		err := decoder.Decode(&config)
+		// check it was parsed
+		if config == nil {
+			continue
+		}
+		// break the loop in case of EOF
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return Configs{}, err
+		}
+		if config.Delay.Nanoseconds() == 0 {
+			config.Delay = time.Second
+		}
+		config.path = name
+		config.index = i
+		i+=1
+		configs = append(configs, *config)
+	}
+	return configs, nil
+}
+func NewConfigsFromFile(path string) (c Configs, err error) {
 	// This only parsed as yaml, nothing else
 	// #nosec
-	yamlConfig, err := ioutil.ReadFile(path)
+	reader, err := os.Open(path)
 	if err != nil {
 		return c, err
 	}
-	err = yaml.Unmarshal(yamlConfig, &c)
-	if c.Delay.Nanoseconds() == 0 {
-		c.Delay = time.Second
-	}
-	c.Path = path
-	return c, nil
+	return NewConfigsFromReader(reader, path)
+}
+
+func NewConfigsFromStdin() (configs Configs, err error) {
+	reader := bufio.NewReader(os.Stdin)
+	return NewConfigsFromReader(reader, "(stdin)")
 }
 
 // ReadFromFileOrDir returns an array of Configs parsed from all yaml files, found while recursively walking
@@ -135,12 +167,11 @@ func ReadFromFileOrDir(path string) (configs Configs, err error) {
 		}
 	} else {
 		// file is not a directory
-		config, err := NewConfig(path)
+		configs, err = NewConfigsFromFile(path)
 		if err != nil {
 			_ = file.Close()
 			return Configs{}, err
 		}
-		configs = Configs{config}
 	}
 	return configs, file.Close()
 }
@@ -158,7 +189,7 @@ func GetConfigs() (configs Configs, err error) {
 	}
 	paths := flag.Args()
 	if len(paths) == 0 {
-		paths = []string{defaultConfFile}
+		return NewConfigsFromStdin()
 	}
 	for _, path := range paths {
 		newConfigs, err := ReadFromFileOrDir(path)
@@ -168,8 +199,8 @@ func GetConfigs() (configs Configs, err error) {
 		configs = append(configs, newConfigs...)
 	}
 
-	for _, config := range configs {
-		config.Debug = config.Debug || debug
+	for i := range configs {
+		configs[i].Debug = configs[i].Debug || debug
 	}
 
 	return configs, err
