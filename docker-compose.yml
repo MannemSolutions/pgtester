@@ -1,12 +1,44 @@
-version: "3.9"  # optional since v1.27.0
 services:
+  postgres:
+    platform: linux/amd64
+    image: postgres:${PGVERSION}
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: 'trust'
+      POSTGRES_PASSWORD: pgtester
+    healthcheck:
+      test: ['CMD', '/usr/bin/pg_isready']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  pgschema:
+    image: postgres:${PGVERSION}
+    command:
+      - /bin/bash
+      - -c
+      - |
+        while ! pg_isready; do
+          echo .
+          sleep 10
+        done
+        cd /host/schema
+        cat *.sql | psql
+    platform: linux/amd64
+    user: postgres
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGDATABASE: postgres
+      PGPORT: '5432'
+    volumes:
+      - ./:/host
+    depends_on:
+      postgres:
+        condition: service_healthy
   pgtester:
     build: .
-  postgres:
-    image: postgres:13
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_HOST_AUTH_METHOD: 'md5'
-      POSTGRES_PASSWORD: pgtester
-
+    platform: linux/amd64
+    depends_on:
+      pgschema:
+        condition: service_completed_successfully
