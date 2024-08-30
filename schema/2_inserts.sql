@@ -1,4 +1,6 @@
 insert into t values(1);
+insert into t2 values('["id","passport"]'::json);
+insert into t2 values('{"id":["passport","nils"],"seb":["reg"]}'::json);
 insert into t2 values('{"id":"passport"}'::json);
 insert into t3 values('{"id": 1}'::json);
 insert into t4 values(true);

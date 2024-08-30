@@ -39,6 +39,9 @@ services:
   pgtester:
     build: .
     platform: linux/amd64
+    command: pgtester -d /host/testdata
+    volumes:
+      - ./:/host
     depends_on:
       pgschema:
         condition: service_completed_successfully

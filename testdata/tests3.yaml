@@ -47,9 +47,9 @@ tests:
   - query: 'select * from t8'
     name: 'interval'
     results:
-      - i: '1d22s'
-      - i: '1y0.000221s'
-      - i: '1y0.221s'
+      - i: '24h0m22s'
+      - i: '8640h0m0.000221s'
+      - i: '8640h0m0.221s'
   - query: 'select * from t9'
     name: 'numeric'
     results:
@@ -61,7 +61,7 @@ tests:
   - query: 'select * from t11'
     name: 'line'
     results:
-      - l: '{1,2,3}'
+      - l: '1.000000 2.000000 3.000000'
   - query: 'select * from t12'
     name: 'xml'
     results:
