@@ -38,7 +38,6 @@ services:
         condition: service_healthy
   pgtester:
     build: .
-    platform: linux/amd64
     command: pgtester -d /host/testdata
     volumes:
       - ./:/host
