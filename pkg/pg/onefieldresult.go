@@ -2,57 +2,92 @@ package pg
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgtype"
 )
 
-func ResultValueToString(value interface{}) string {
+func ResultValueToString(value interface{}) (s string, err error) {
 	switch v := value.(type) {
 	case string:
-		return v
+		return v, nil
 	case float32, float64:
-		return fmt.Sprintf("%f", v)
+		return fmt.Sprintf("%f", v), nil
 	case bool:
-		return fmt.Sprintf("%t", v)
+		return fmt.Sprintf("%t", v), nil
 	case time.Duration:
-		return v.String()
+		return v.String(), nil
 	case time.Time:
-		return v.String()
+		return v.String(), nil
 	case int:
-		return fmt.Sprintf("%d", v)
+		return fmt.Sprintf("%d", v), nil
 	case int8:
-		return fmt.Sprintf("%d", v)
+		return fmt.Sprintf("%d", v), nil
 	case int16:
-		return fmt.Sprintf("%d", v)
+		return fmt.Sprintf("%d", v), nil
 	case int32:
-		return fmt.Sprintf("%d", v)
+		return fmt.Sprintf("%d", v), nil
 	case int64:
-		return fmt.Sprintf("%d", v)
+		return fmt.Sprintf("%d", v), nil
 	case uint:
-		return fmt.Sprintf("%d", v)
+		return fmt.Sprintf("%d", v), nil
 	case uint8:
-		return fmt.Sprintf("%d", v)
+		return fmt.Sprintf("%d", v), nil
 	case uint16:
-		return fmt.Sprintf("%d", v)
+		return fmt.Sprintf("%d", v), nil
 	case uint32:
-		return fmt.Sprintf("%d", v)
+		return fmt.Sprintf("%d", v), nil
 	case uint64:
-		return fmt.Sprintf("%d", v)
+		return fmt.Sprintf("%d", v), nil
 	case []byte:
-		return fmt.Sprintf("%d", v)
+		return fmt.Sprintf("%x", v), nil
 	case pgtype.Float4Array:
 		var l []string
 		for _, e := range v.Elements {
 			l = append(l, fmt.Sprintf("%f", e.Float))
 		}
-		return fmt.Sprintf("[%s]", strings.Join(l, ","))
+		return fmt.Sprintf("[%s]", strings.Join(l, ",")), nil
+	case pgtype.Line:
+		return fmt.Sprintf("%f %f %f", v.A, v.B, v.C), nil
+	case pgtype.Interval:
+		var retVal time.Duration
+		if err = v.AssignTo(&retVal); err != nil {
+			return
+		} else {
+			return retVal.String(), nil
+		}
+	case pgtype.Numeric:
+		var retVal float64
+		if err = v.AssignTo(&retVal); err != nil {
+			return
+		} else {
+			return strconv.FormatFloat(retVal, 'g', -1, 64), nil
+		}
+	case *pgtype.JSON:
+		var retVal string
+		if err = v.AssignTo(&retVal); err != nil {
+			return
+		} else {
+			return retVal, nil
+		}
+	case *pgtype.JSONB:
+		var retVal string
+		if err = v.AssignTo(&retVal); err != nil {
+			return
+		} else {
+			return retVal, nil
+		}
 	case nil:
-		return "nil"
+		return "nil", nil
 	default:
-		return fmt.Sprintf("unknown datatype %v", value)
+		if reflect.TypeOf(value).Kind() == reflect.Map || reflect.TypeOf(value).Kind() == reflect.Slice {
+			return fmt.Sprintf("%v", value), nil
+		}
+		return fmt.Sprintf("unknown datatype %v (%T)", value, value), nil
 	}
 }
 
@@ -65,9 +100,11 @@ func NewResultFromByteArrayArray(cols []string, values []interface{}) (ofr Resul
 		return ofr, fmt.Errorf("number of cols different then number of values")
 	}
 	for i, col := range cols {
-		ofr[col] = ResultValueToString(values[i])
+		if ofr[col], err = ResultValueToString(values[i]); err != nil {
+			return
+		}
 	}
-	return ofr, nil
+	return
 }
 
 func (ofr Result) String() (s string) {
@@ -131,8 +168,8 @@ func (results Results) String() (s string) {
 
 func (results Results) Compare(other Results) (err error) {
 	if len(results) != len(other) {
-		return fmt.Errorf("different result (%s) then expected (%s)", results.String(),
-			other.String())
+		return fmt.Errorf("different numer of results (%d) then expected (%d)", len(results),
+			len(other))
 	}
 	for i, result := range results {
 		err = result.Compare(other[i])
