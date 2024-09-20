@@ -92,8 +92,10 @@ func (c *Conn) RunQueryGetOneField(query string, args ...interface{}) (result Re
 		if err != nil {
 			return result, err
 		}
+		log.Debug("Append")
 		result = append(result, ofr)
 	}
+	log.Debugf("Query returned %d results", len(result))
 	if err := rows.Err(); err != nil {
 		return result, err
 	}

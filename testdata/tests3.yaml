@@ -4,7 +4,7 @@ dsn:
   port: 5432
   user: postgres
   password: pgtester
-  dbname: postgres
+  dbname: pgtester
 
 retries: 5
 delay: 1s
@@ -20,11 +20,15 @@ tests:
   - query: 'select * from t2'
     name: 'json'
     results:
-      - j: '{"id":"passport"}'
+      - j: "\\[question answer]"
+      - j: "map\\[names:\\[me myself I] person:\\[second third first]]"
+      - j: "map\\[answer:fourtytwo]"
   - query: 'select * from t3'
     name: 'jsonb'
     results:
-      - j: '{"id":"1"]'
+      - j: "\\[question answer]"
+      - j: "map\\[names:\\[me myself I] person:\\[second third first]]"
+      - j: "map\\[answer:fourtytwo]"
   - query: 'select * from t4'
     name: 'bool'
     results:

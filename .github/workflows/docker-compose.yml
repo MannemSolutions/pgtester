@@ -1,8 +1,10 @@
 # Refer to https://github.com/marketplace/actions/rust-release-binary for more info
+name: Docker Compose Actions Workflow
 on:
   push:
     branches:
-  pull_request:
+  # pull_request:
+  # types: [opened, reopened]
 
 jobs:
   unittest:
@@ -11,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pgversion: [13, 14, 15, 16]
+        pgversion: [12, 13, 14, 15, 16]
     env:
       PGVERSION: ${{ matrix.pgversion }}
     steps:
@@ -25,6 +27,8 @@ jobs:
         run: |
           docker-compose --version
           echo $PGVERSION
+      - name: postgres
+        run: docker-compose down --remove-orphans --rmi local || echo new or partial install
       - name: postgres
         run: docker-compose up -d postgres --no-deps
       - name: pgschema

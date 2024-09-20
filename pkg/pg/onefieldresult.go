@@ -2,6 +2,7 @@ package pg
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -83,6 +84,9 @@ func ResultValueToString(value interface{}) (s string, err error) {
 	case nil:
 		return "nil", nil
 	default:
+		if reflect.TypeOf(value).Kind() == reflect.Map || reflect.TypeOf(value).Kind() == reflect.Slice {
+			return fmt.Sprintf("%v", value), nil
+		}
 		return fmt.Sprintf("unknown datatype %v (%T)", value, value), nil
 	}
 }
@@ -96,7 +100,6 @@ func NewResultFromByteArrayArray(cols []string, values []interface{}) (ofr Resul
 		return ofr, fmt.Errorf("number of cols different then number of values")
 	}
 	for i, col := range cols {
-		fmt.Printf("datatype: %T\n", values[i])
 		if ofr[col], err = ResultValueToString(values[i]); err != nil {
 			return
 		}
@@ -165,8 +168,8 @@ func (results Results) String() (s string) {
 
 func (results Results) Compare(other Results) (err error) {
 	if len(results) != len(other) {
-		return fmt.Errorf("different result (%s) then expected (%s)", results.String(),
-			other.String())
+		return fmt.Errorf("different numer of results (%d) then expected (%d)", len(results),
+			len(other))
 	}
 	for i, result := range results {
 		err = result.Compare(other[i])
